@@ -143,11 +143,27 @@ class SequenceToSequence(Model):
         lambda ids: self.source_inputter.transform_data(ids, mode=mode, log_dir=log_dir),
         scope=source_input_scope)(features)
 
+    encoder_outputs=None
     with tf.variable_scope("encoder"):
       encoder_outputs, encoder_state, encoder_sequence_length = self.encoder.encode(
           source_inputs,
           sequence_length=features_length,
           mode=mode)
+
+    ## If only encoder outputs are required in infer mode. The encoder outputs can be used to construct 
+    ## multilingual embeddings. Refer to the following paper: https://arxiv.org/abs/1809.04686
+    ## The encoder outputs are stored in the key "encoder_outputs" and the length of the encoder outputs 
+    ## is stored with the key "features_outputs". Use beam size of 1 and n_best=1  when using this option
+    ##
+    if mode == tf.estimator.ModeKeys.PREDICT and params.get("run_encoder_only", False): 
+      if params.get("beam_width",1)>1:  
+          raise ValueError("beam_width should be 1")
+      predictions = {
+            "encoder_outputs":  encoder_outputs,
+            "features_length":  features_length,
+        }
+      logits=None
+      return  logits, predictions
 
     target_vocab_size = self.target_inputter.vocabulary_size
     target_dtype = self.target_inputter.dtype
@@ -268,14 +284,23 @@ class SequenceToSequence(Model):
   def print_prediction(self, prediction, params=None, stream=None):
     n_best = params and params.get("n_best")
     n_best = n_best or 1
+    
+    if "tokens" in prediction:
+      if n_best > len(prediction["tokens"]):
+        raise ValueError("n_best cannot be greater than beam_width")
 
-    if n_best > len(prediction["tokens"]):
-      raise ValueError("n_best cannot be greater than beam_width")
-
-    for i in range(n_best):
-      tokens = prediction["tokens"][i][:prediction["length"][i] - 1] # Ignore </s>.
-      sentence = self.target_inputter.tokenizer.detokenize(tokens)
-      print_bytes(tf.compat.as_bytes(sentence), stream=stream)
+      for i in range(n_best):
+        tokens = prediction["tokens"][i][:prediction["length"][i] - 1] # Ignore </s>.
+        sentence = self.target_inputter.tokenizer.detokenize(tokens)
+        print_bytes(tf.compat.as_bytes(sentence), stream=stream)
+    elif ("encoder_outputs" in prediction) and (["encoder_outputs"] is not None):
+      if n_best > 1:  
+        raise ValueError("n_best should be 1")
+      print(prediction["encoder_outputs"].shape)
+      print(prediction["features_length"])
+      print()
+    else: 
+      raise ValueError("Encoder outputs not found")
 
 
 def align_tokens_from_attention(tokens, attention):

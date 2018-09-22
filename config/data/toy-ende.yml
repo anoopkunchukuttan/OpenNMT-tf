@@ -1,4 +1,4 @@
-model_dir: toy-ende
+model_dir: toy-ende-gpu
 
 data:
   train_features_file: data/toy-ende/src-train.txt
