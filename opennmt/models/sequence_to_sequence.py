@@ -296,9 +296,15 @@ class SequenceToSequence(Model):
     elif ("encoder_outputs" in prediction) and (["encoder_outputs"] is not None):
       if n_best > 1:  
         raise ValueError("n_best should be 1")
-      print(prediction["encoder_outputs"].shape)
-      print(prediction["features_length"])
-      print()
+      features_length=prediction["features_length"]
+      enc=prediction["encoder_outputs"]
+      enc_text=' '.join(  [ str(enc.shape[0]),  str(enc.shape[1]), str(features_length), ] +  \
+              [ str(p) for p in enc.reshape(-1) ] )
+      ### there will be one line per input sentence, with fields separeted by space
+      # first two fields indicate the shape of the encoder array (length x dimension)
+      # third field indicates the actual length of the input (needed since length = max length in the batch)
+      # remain fields represent the encoder matrix flattened to a 1-D matrix
+      print_bytes(tf.compat.as_bytes(enc_text), stream=stream)
     else: 
       raise ValueError("Encoder outputs not found")
 
