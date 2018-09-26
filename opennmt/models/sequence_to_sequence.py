@@ -298,11 +298,11 @@ class SequenceToSequence(Model):
         raise ValueError("n_best should be 1")
       features_length=prediction["features_length"]
       enc=prediction["encoder_outputs"]
-      enc_text=' '.join(  [ str(enc.shape[0]),  str(enc.shape[1]), str(features_length), ] +  \
-              [ str(p) for p in enc.reshape(-1) ] )
+      enc_text=' '.join(  [ str(features_length),  str(enc.shape[1]), ] +  \
+              [ str(p) for p in enc[:features_length,:].reshape(-1) ] )
       ### there will be one line per input sentence, with fields separeted by space
       # first two fields indicate the shape of the encoder array (length x dimension)
-      # third field indicates the actual length of the input (needed since length = max length in the batch)
+      # padding entries are not written to disk
       # remain fields represent the encoder matrix flattened to a 1-D matrix
       print_bytes(tf.compat.as_bytes(enc_text), stream=stream)
     else: 
