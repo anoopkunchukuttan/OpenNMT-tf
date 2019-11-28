@@ -31,3 +31,5 @@ eval:
 infer:
   batch_size: 64
   n_best: 1
+  # could be one of 'output' or 'state'. Default is state. This parameter is required only of run_encoder_only=true    
+  enc_rep: output

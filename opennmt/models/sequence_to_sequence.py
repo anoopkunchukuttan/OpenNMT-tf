@@ -161,6 +161,7 @@ class SequenceToSequence(Model):
       predictions = {
             "encoder_outputs":  encoder_outputs,
             "features_length":  features_length,
+            "encoder_state":  tf.concat([encoder_state.h,encoder_state.c],axis=1),
         }
       logits=None
       return  logits, predictions
@@ -296,15 +297,26 @@ class SequenceToSequence(Model):
     elif ("encoder_outputs" in prediction) and (["encoder_outputs"] is not None):
       if n_best > 1:  
         raise ValueError("n_best should be 1")
-      features_length=prediction["features_length"]
-      enc=prediction["encoder_outputs"]
-      enc_text=' '.join(  [ str(features_length),  str(enc.shape[1]), ] +  \
-              [ str(p) for p in enc[:features_length,:].reshape(-1) ] )
-      ### there will be one line per input sentence, with fields separeted by space
-      # first two fields indicate the shape of the encoder array (length x dimension)
-      # padding entries are not written to disk
-      # remain fields represent the encoder matrix flattened to a 1-D matrix
-      print_bytes(tf.compat.as_bytes(enc_text), stream=stream)
+
+      enc_rep = params and params.get('enc_rep')
+      enc_rep = enc_rep or "state"
+
+      if enc_rep == "output":
+        features_length=prediction["features_length"]
+        enc=prediction["encoder_outputs"]
+        enc_text=' '.join(  [ str(features_length),  str(enc.shape[1]), ] +  \
+                [ str(p) for p in enc[:features_length,:].reshape(-1) ] )
+        ### there will be one line per input sentence, with fields separeted by space
+        # first two fields indicate the shape of the encoder array (length x dimension)
+        # padding entries are not written to disk
+        # remain fields represent the encoder matrix flattened to a 1-D matrix
+        print_bytes(tf.compat.as_bytes(enc_text), stream=stream)
+      elif enc_rep == "state":
+        enc=prediction["encoder_state"]
+        enc_text=' '.join(  [ str(p) for p in enc ] )
+        ### there will be one line per input sentence, with fields separeted by space
+        print_bytes(tf.compat.as_bytes(enc_text), stream=stream)
+
     else: 
       raise ValueError("Encoder outputs not found")
 
